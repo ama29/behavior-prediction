@@ -168,14 +168,12 @@ def main():
     time = 0.0
     timestep = 0
     
-# =============================================================================
-#     trajectory1 = []
-#     velocity1 = 1
-#     for i in range(100):
-#         rand = random.randint(-1,1)
-#         velocity = max(0, rand+velocity1)
-#         trajectory1.append([[i],[0],[0],[velocity1]])
-# =============================================================================
+    trajectory1 = []
+    velocity1 = 1
+    for i in range(100):
+        rand = random.randint(-1,1)
+        velocity = max(0, rand+velocity1)
+        trajectory1.append([[i],[0],[0],[velocity1]])
     
     trajectory2 = []
     velocity2 = 1
@@ -184,7 +182,7 @@ def main():
         velocity2 = max(0, rand+velocity2)
         trajectory2.append([[i],[i],[0],[velocity2]])
     # Varies depending on test case
-    agents = [trajectory2]
+    agents = [trajectory1, trajectory2]
     trajectories = {}
     
     # State Vector [x y yaw v]'
@@ -192,15 +190,15 @@ def main():
     xTrue = np.zeros((4, 1))
     PEst = np.eye(4)
     xDR = np.zeros((4, 1))  # Dead reckoning
-    hz = np.zeros((2,1))
+    z = np.zeros((2,1))
 
     # traj, xEst, xTrue, PEst, xDR, hz
     for i in range(len(agents)):
-        trajectories[i] = [agents[i], xEst, xTrue, PEst, xDR, hz]
+        trajectories[i] = [agents[i], xEst, xTrue, PEst, xDR, z]
 
     histories = {}
     for agent_id, traj in trajectories.items():
-        histories[agent_id] = [traj, xEst, xTrue, PEst, xDR, hz]
+        histories[agent_id] = [traj, xEst, xTrue, PEst, xDR, z]
         
     while SIM_TIME >= time:
         time += DT
@@ -208,51 +206,31 @@ def main():
         u = calc_input()
 
         for agent_id, traj in trajectories.items():
-            xTrue, z, xDR, ud = observation(traj[2], traj[4], u, timestep, traj[0])
+            traj[2], traj[5], traj[4], ud = observation(traj[2], traj[4], u, timestep, traj[0])
+            traj[1], traj[3] = ekf_estimation(traj[1], traj[3], traj[5], ud)
 
-            xEst, PEst = ekf_estimation(traj[1], traj[3], traj[5], ud)
-
-            hxEst = np.hstack((histories[agent_id][1], xEst))
-            print("hxEst", hxEst)
-            hxDR = np.hstack((histories[agent_id][4], xDR))
-            hxTrue = np.hstack((histories[agent_id][2], xTrue))
-            hz = np.hstack((histories[agent_id][5], z))
+            hxEst = np.hstack((histories[agent_id][1], traj[1]))
+            hxDR = np.hstack((histories[agent_id][4], traj[4]))
+            hxTrue = np.hstack((histories[agent_id][2], traj[2]))
+            hz = np.hstack((histories[agent_id][5], traj[5]))
 
             histories[agent_id] = [traj[0], hxEst, hxTrue, PEst, hxDR, hz]
 
-            if show_animation:
-                plt.cla()
-                # for stopping simulation with the esc key.
-                plt.gcf().canvas.mpl_connect('key_release_event',
-                        lambda event: [exit(0) if event.key == 'escape' else None])
-                plt.plot(hz[0, :], hz[1, :], ".g")
-                plt.plot(hxTrue[0, :].flatten(),
-                     hxTrue[1, :].flatten(), "-b")
-                plt.plot(hxEst[0, :].flatten(),
-                     hxEst[1, :].flatten(), "-r")
-#                print("old", xEst, PEst)
-                plot_covariance_ellipse(xEst, PEst)
-                plt.axis("equal")
-                plt.grid(True)
-                plt.pause(0.001)
-
-# =============================================================================
-#         if show_animation:
-#             plt.cla()
-#             # for stopping simulation with the esc key.
-#             plt.gcf().canvas.mpl_connect('key_release_event',
-#                     lambda event: [exit(0) if event.key == 'escape' else None])
-#             for agent_id, traj in histories.items():
-#                 plt.plot(traj[5][0, :], traj[5][1, :], ".g")
-#                 plt.plot(traj[2][0, :].flatten(),
-#                      traj[2][1, :].flatten(), "-b")
-#                 plt.plot(traj[1][0, :].flatten(),
-#                      traj[1][1, :].flatten(), "-r")
-#                 plot_covariance_ellipse(traj[1], traj[3])
-#             plt.axis("equal")
-#             plt.grid(True)
-#             plt.pause(0.001)
-# =============================================================================
+        if show_animation:
+            plt.cla()
+            # for stopping simulation with the esc key.
+            plt.gcf().canvas.mpl_connect('key_release_event',
+                    lambda event: [exit(0) if event.key == 'escape' else None])
+            for agent_id, traj in histories.items():
+                plt.plot(traj[5][0, :], traj[5][1, :], ".g")
+                plt.plot(traj[2][0, :].flatten(),
+                     traj[2][1, :].flatten(), "-b")
+                plt.plot(traj[1][0, :].flatten(),
+                     traj[1][1, :].flatten(), "-r")
+                plot_covariance_ellipse(trajectories[agent_id][1], trajectories[agent_id][3])
+            plt.axis("equal")
+            plt.grid(True)
+            plt.pause(0.001)
 
 
 if __name__ == '__main__':
