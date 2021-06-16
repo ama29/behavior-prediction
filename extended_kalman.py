@@ -187,6 +187,7 @@ def plot_extended_kalman(agents):
             traj[2], traj[5], traj[4], ud = observation(traj[2], traj[4], u, timestep, traj[0])
             traj[1], traj[3] = ekf_estimation(traj[1], traj[3], traj[5], ud)
 
+            # push the new estimations, true trajectories, predictions onto the stack
             hxEst = np.hstack((histories[agent_id][1], traj[1]))
             hxDR = np.hstack((histories[agent_id][4], traj[4]))
             hxTrue = np.hstack((histories[agent_id][2], traj[2]))
@@ -199,6 +200,7 @@ def plot_extended_kalman(agents):
             # for stopping simulation with the esc key.
             plt.gcf().canvas.mpl_connect('key_release_event',
                     lambda event: [exit(0) if event.key == 'escape' else None])
+            # estimated trajectory in red, actual trajectory in black, confidence ellipse in red
             for agent_id, traj in histories.items():
                 plt.plot(traj[5][0, :], traj[5][1, :], ".g")
                 plt.plot(traj[2][0, :].flatten(),
